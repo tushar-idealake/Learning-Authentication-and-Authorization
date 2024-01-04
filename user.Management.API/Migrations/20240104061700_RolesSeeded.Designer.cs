@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using user.Management.API.Models;
 
@@ -11,9 +12,10 @@ using user.Management.API.Models;
 namespace user.Management.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240104061700_RolesSeeded")]
+    partial class RolesSeeded
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -51,22 +53,22 @@ namespace user.Management.API.Migrations
                     b.HasData(
                         new
                         {
-                            Id = "8e9bf806-09bf-4015-a8cb-6aed5ed5839b",
+                            Id = "122df0b7-1de4-4960-b4b7-609e256ee84b",
                             ConcurrencyStamp = "1",
                             Name = "Admin",
                             NormalizedName = "Admin"
                         },
                         new
                         {
-                            Id = "97e92ef8-b48c-492e-a571-00833adeddc6",
+                            Id = "d8f60451-002d-487a-8c6a-ab264e1ddeaf",
                             ConcurrencyStamp = "2",
                             Name = "User",
                             NormalizedName = "User"
                         },
                         new
                         {
-                            Id = "cada2dfb-6689-440d-8bc2-debd8df70d38",
-                            ConcurrencyStamp = "3",
+                            Id = "3fc7ff91-2414-42da-a18b-5f08593a7ef9",
+                            ConcurrencyStamp = "2",
                             Name = "HR",
                             NormalizedName = "Human Resources"
                         });
