@@ -30,4 +30,8 @@
     <None Include="C:\Users\tushar_kadam\source\repos\user.Management.API\user.Management.API\.editorconfig" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\User.Management.Service\User.Management.Service.csproj" />
+  </ItemGroup>
+
 </Project>
