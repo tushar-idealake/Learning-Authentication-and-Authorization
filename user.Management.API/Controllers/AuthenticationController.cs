@@ -44,12 +44,23 @@ namespace user.Management.API.Controllers
                 UserName = registerUser.Username
             };
 
+            if(await _roleManager.RoleExistsAsync(role))
+            {
             var result = await _userManager.CreateAsync(user, registerUser.Password);
-            return result.Succeeded
-                ? StatusCode(StatusCodes.Status201Created, new Response { Status = "Success", Message = "User registered successfully" })
-                : (IActionResult)StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "Failed to register" });
 
-            // Assign a role that we want
+            if (!result.Succeeded)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "Failed to register" });
+            }
+                // Assign a role that we want
+             await _userManager.AddToRoleAsync(user, role);
+
+             return StatusCode(StatusCodes.Status200OK, new Response { Status = "Success", Message = "User created successfully" });
+            }
+            else
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "This role does not exist" });
+            }
 
         }
 
