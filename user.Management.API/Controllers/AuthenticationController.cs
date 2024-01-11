@@ -1,8 +1,12 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using user.Management.API.Models;
 using user.Management.API.Models.Authentication;
+using user.Management.API.Models.Authentication.Login;
 using User.Management.Service.Models;
 using User.Management.Service.Services;
 
@@ -15,14 +19,16 @@ namespace user.Management.API.Controllers
         private readonly UserManager<IdentityUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IEmailService _emailService;
+        private readonly IConfiguration _configuration;
 
         public AuthenticationController(UserManager<IdentityUser> userManager,
                                           RoleManager<IdentityRole> roleManager,
-                                          IEmailService emailService)
+                                          IEmailService emailService, IConfiguration configuration)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _emailService = emailService;
+            _configuration = configuration;
         }
 
         [HttpPost]
@@ -105,6 +111,69 @@ namespace user.Management.API.Controllers
             }
             return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "This user does not exist" });
 
+        }
+
+
+        [HttpPost]
+        [Route("login")]
+
+        public async Task<IActionResult> Login([FromBody] LoginModel loginModel)
+
+        {
+            // checking the user
+
+            var user = await _userManager.FindByNameAsync(loginModel.Username);
+            // checking the password
+
+            if (user != null && await _userManager.CheckPasswordAsync(user, loginModel.Password))
+            {
+                // claimlist creation
+
+                var authClaims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, loginModel.Username),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                };
+
+                var userRoles = await _userManager.GetRolesAsync(user);
+
+                // we add roles to the claim list
+
+                foreach (var role in userRoles)
+                {
+                    authClaims.Add(new Claim(ClaimTypes.Role, role));
+                }
+
+                // generate the token with claims
+
+                var jwtToken = GetToken(authClaims);
+
+                // return the token
+
+                return Ok(new
+                {
+                    token = new JwtSecurityTokenHandler().WriteToken(jwtToken),
+                    expiration = jwtToken.ValidTo
+                }
+                    );
+
+            }
+
+            return Unauthorized();
+        }
+
+        private JwtSecurityToken GetToken(List<Claim> authClaims)
+        {
+            var authSigninKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
+
+            var token = new JwtSecurityToken(
+                issuer: _configuration["JWT:ValidIssuer"],
+                audience: _configuration["JWT.ValidAudience"],
+                expires: DateTime.Now.AddHours(1),
+                claims: authClaims,
+                signingCredentials: new SigningCredentials(authSigninKey, SecurityAlgorithms.HmacSha256)
+                );
+            return token;
         }
     }
 }
