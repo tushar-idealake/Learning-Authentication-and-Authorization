@@ -4,11 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace user.Management.API.Controllers
 {
+    [Authorize(Roles ="Admin")]
     [Route("api/[controller]")]
     [ApiController]
     public class AdminController : ControllerBase
     {
-        [Authorize]
         [HttpGet("employees")]
         public IEnumerable<string> Get()
         {
