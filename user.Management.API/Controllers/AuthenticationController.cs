@@ -17,18 +17,21 @@ namespace user.Management.API.Controllers
     public class AuthenticationController : ControllerBase
     {
         private readonly UserManager<IdentityUser> _userManager;
+        private readonly SignInManager<IdentityUser> _signInManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
 
         public AuthenticationController(UserManager<IdentityUser> userManager,
                                           RoleManager<IdentityRole> roleManager,
+                                          SignInManager<IdentityUser> signInManager,
                                           IEmailService emailService, IConfiguration configuration)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _emailService = emailService;
             _configuration = configuration;
+            _signInManager = signInManager;
         }
 
         [HttpPost]
@@ -51,7 +54,8 @@ namespace user.Management.API.Controllers
             {
                 Email = registerUser.Email,
                 SecurityStamp = Guid.NewGuid().ToString(),
-                UserName = registerUser.Username
+                UserName = registerUser.Username,
+                TwoFactorEnabled = true /*Enabling Two Factor Authentication*/
             };
 
             if (await _roleManager.RoleExistsAsync(role))
@@ -125,6 +129,20 @@ namespace user.Management.API.Controllers
             var user = await _userManager.FindByNameAsync(loginModel.Username);
             // checking the password
 
+            if (user.TwoFactorEnabled)
+            {
+
+                await _signInManager.SignOutAsync();
+                await _signInManager.PasswordSignInAsync(user, loginModel.Password, false, false);
+                var otp = await _userManager.GenerateTwoFactorTokenAsync(user, "Email");
+
+                var message = new Message(new string[] { user.Email! }, "Your 2FA Login OTP is : ", otp!);
+
+                _emailService.SendEmail(message);
+                return StatusCode(StatusCodes.Status200OK, new Response { Status = "Success", Message = $"OTP is sent to {user.Email}" });
+
+            }
+
             if (user != null && await _userManager.CheckPasswordAsync(user, loginModel.Password))
             {
                 // claimlist creation
@@ -160,6 +178,62 @@ namespace user.Management.API.Controllers
             }
 
             return Unauthorized();
+        }
+
+        [HttpPost]
+        [Route("login-2FA")]
+
+        public async Task<IActionResult> LoginWithOtp(string code, string username)
+
+        {
+            var user = await _userManager.FindByNameAsync(username);
+
+            var signIn = await _signInManager.TwoFactorSignInAsync("Email", code, false, false);
+
+            if (signIn.Succeeded)
+            {
+
+
+                if (user != null)
+                {
+                    // claimlist creation
+
+                    var authClaims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, user.UserName),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                };
+
+                    var userRoles = await _userManager.GetRolesAsync(user);
+
+                    // we add roles to the claim list
+
+                    foreach (var role in userRoles)
+                    {
+                        authClaims.Add(new Claim(ClaimTypes.Role, role));
+                    }
+
+
+                    // generate the token with claims
+
+                    var jwtToken = GetToken(authClaims);
+
+                    // return the token
+
+                    return Ok(new
+                    {
+                        token = new JwtSecurityTokenHandler().WriteToken(jwtToken),
+                        expiration = jwtToken.ValidTo
+                    }
+                        );
+
+                }
+
+
+            }
+
+            return StatusCode(StatusCodes.Status404NotFound, new Response { Status = "Error", Message = "Invalid OTP" });
+
         }
 
         private JwtSecurityToken GetToken(List<Claim> authClaims)
